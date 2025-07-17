@@ -77,10 +77,13 @@ class KnowledgeExtractionServer:
                     # Find a suitable LLM (avoid embedding models)
                     available_models = [m['id'] for m in models['data']]
                     
-                    # Prefer Gemma, then Llama, then others, but skip embedding models
+                    # Prefer Mistral, then Gemma, then Llama, then others, but skip embedding models
                     for model_id in available_models:
                         if 'embedding' not in model_id.lower():
-                            if any(name in model_id.lower() for name in ['gemma', 'llama', 'phi', 'deepseek']):
+                            if 'mistral' in model_id.lower():
+                                self.model_name = model_id
+                                break
+                            elif any(name in model_id.lower() for name in ['gemma', 'llama', 'phi', 'deepseek']):
                                 self.model_name = model_id
                                 break
                     else:

@@ -220,7 +220,7 @@ Make the report comprehensive, detailed, and academically rigorous. Each section
             response = requests.post(
                 "http://127.0.0.1:1234/v1/chat/completions",
                 json={
-                    "model": "meta-llama-3.1-8b-instruct",
+                    "model": "mistralai/mistral-small-3.2",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.3,
                     "max_tokens": 2000

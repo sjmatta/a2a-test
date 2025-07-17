@@ -265,7 +265,7 @@ Make each query specific and preserve the exact original subject name."""
                 response = await client.post(
                     "http://127.0.0.1:1234/v1/chat/completions",
                     json={
-                        "model": "meta-llama-3.1-8b-instruct",
+                        "model": "mistralai/mistral-small-3.2",
                         "messages": [{"role": "user", "content": prompt}],
                         "temperature": 0.7,
                         "max_tokens": 300
