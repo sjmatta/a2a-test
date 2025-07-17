@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple Knowledge Extraction Service - Uses only Mistral, no fallbacks.
+Fallback Knowledge Extraction Service - Works without Mistral if needed.
 """
 
 import uuid
@@ -32,7 +32,7 @@ class InsightResponse(BaseModel):
 
 
 class KnowledgeExtractionServer:
-    """Simple Knowledge Extraction Service using only Mistral."""
+    """Knowledge Extraction Service with Mistral + fallback."""
     
     def __init__(self, port: int = 8002, shared_secret: str = "demo-secret"):
         self.port = port
@@ -43,7 +43,7 @@ class KnowledgeExtractionServer:
         # Create FastAPI app
         self.app = FastAPI(
             title="A2A Knowledge Extraction Service",
-            description="Simple knowledge extraction using Mistral",
+            description="Knowledge extraction with Mistral and fallback",
             version="1.0.0"
         )
         
@@ -53,7 +53,7 @@ class KnowledgeExtractionServer:
         # Setup routes
         self._setup_routes()
         
-        print(f"[knowledge-server] ✅ Using Mistral: mistralai/mistral-small-3.2")
+        print(f"[knowledge-server] ✅ Ready with Mistral + fallback")
     
     def _setup_routes(self):
         """Setup FastAPI routes."""
@@ -67,65 +67,61 @@ class KnowledgeExtractionServer:
             request: ExtractionRequest,
             authenticated_service: str = Depends(self.verify_auth)
         ):
-            """Extract insights from search results using Mistral."""
-            print(f"[knowledge-server] Processing {len(request.search_results)} results with Mistral")
+            """Extract insights from search results."""
+            print(f"[knowledge-server] Processing {len(request.search_results)} results")
             
-            try:
-                all_insights = []
-                for result_data in request.search_results:
+            all_insights = []
+            for result_data in request.search_results:
+                # Try Mistral first, fallback to simple extraction
+                try:
                     insights = await self._extract_with_mistral(result_data)
-                    all_insights.extend(insights)
+                    print(f"[knowledge-server] ✅ Mistral extracted {len(insights)} insights")
+                except Exception as e:
+                    print(f"[knowledge-server] ⚠️ Mistral failed: {e}, using fallback")
+                    insights = self._extract_with_fallback(result_data)
+                    print(f"[knowledge-server] ✅ Fallback extracted {len(insights)} insights")
                 
-                # Store insights
-                for insight in all_insights:
-                    self.insights[insight.id] = insight
-                
-                print(f"[knowledge-server] ✅ Extracted {len(all_insights)} insights with Mistral")
-                
-                return InsightResponse(
-                    insights=[self._insight_to_dict(insight) for insight in all_insights],
-                    total_insights=len(all_insights)
-                )
-            except Exception as e:
-                print(f"[knowledge-server] ❌ Error in extract_insights: {e}")
-                import traceback
-                traceback.print_exc()
-                raise HTTPException(status_code=500, detail=f"Insight extraction failed: {str(e)}")
+                all_insights.extend(insights)
+            
+            # Store insights
+            for insight in all_insights:
+                self.insights[insight.id] = insight
+            
+            print(f"[knowledge-server] ✅ Total: {len(all_insights)} insights")
+            
+            return InsightResponse(
+                insights=[self._insight_to_dict(insight) for insight in all_insights],
+                total_insights=len(all_insights)
+            )
     
     async def _extract_with_mistral(self, result_data: Dict[str, Any]) -> List[ResearchInsight]:
         """Extract insights using Mistral."""
         content = result_data.get('snippet', '') + ' ' + result_data.get('title', '')
         url = result_data.get('url', '')
         
-        prompt = f"""Extract 8-12 insights from this content:
+        prompt = f"""Extract 5-8 insights from this content:
 
 Content: "{content}"
-Source: {url}
 
-Return JSON array with insights in these categories:
-- overview: main concepts and purpose
-- methodology: techniques and approaches  
-- domain: research fields and applications
-- findings: key results and discoveries
-- significance: impact and importance
+Return JSON array: [{{"content": "insight description", "insight_type": "overview", "confidence": 0.9}}]
 
-Format: [{{"content": "detailed insight description", "insight_type": "overview", "confidence": 0.95}}]"""
+Categories: overview, methodology, domain, findings, significance"""
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 "http://127.0.0.1:1234/v1/chat/completions",
                 json={
                     "model": "mistralai/mistral-small-3.2",
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": 0.3,
-                    "max_tokens": 1500
+                    "max_tokens": 800
                 }
             )
             
             result = response.json()
             response_text = result['choices'][0]['message']['content'].strip()
         
-        # Extract JSON from Mistral response
+        # Extract JSON
         if '```json' in response_text:
             start = response_text.find('```json') + 7
             end = response_text.find('```', start)
@@ -150,7 +146,53 @@ Format: [{{"content": "detailed insight description", "insight_type": "overview"
             )
             insights.append(insight)
         
-        print(f"[knowledge-server] ✅ Mistral extracted {len(insights)} insights")
+        return insights
+    
+    def _extract_with_fallback(self, result_data: Dict[str, Any]) -> List[ResearchInsight]:
+        """Simple fallback extraction without LLM."""
+        content = result_data.get('snippet', '') + ' ' + result_data.get('title', '')
+        url = result_data.get('url', '')
+        title = result_data.get('title', '')
+        
+        insights = []
+        
+        # Create basic insights from title and content
+        if title:
+            insights.append(ResearchInsight(
+                id=str(uuid.uuid4()),
+                content=f"Source discusses: {title}",
+                confidence=0.8,
+                source_urls=[url],
+                insight_type='overview',
+                extracted_at=datetime.utcnow().isoformat()
+            ))
+        
+        if content:
+            # Extract key phrases
+            words = content.lower().split()
+            key_terms = [word for word in words if len(word) > 5 and word.isalpha()]
+            
+            if key_terms:
+                insights.append(ResearchInsight(
+                    id=str(uuid.uuid4()),
+                    content=f"Key terms mentioned: {', '.join(key_terms[:5])}",
+                    confidence=0.7,
+                    source_urls=[url],
+                    insight_type='domain',
+                    extracted_at=datetime.utcnow().isoformat()
+                ))
+            
+            # Basic content analysis
+            if 'news' in content.lower() or 'latest' in content.lower():
+                insights.append(ResearchInsight(
+                    id=str(uuid.uuid4()),
+                    content="Source contains recent news or updates",
+                    confidence=0.8,
+                    source_urls=[url],
+                    insight_type='significance',
+                    extracted_at=datetime.utcnow().isoformat()
+                ))
+        
         return insights
     
     def _insight_to_dict(self, insight: ResearchInsight) -> Dict[str, Any]:
@@ -166,7 +208,7 @@ Format: [{{"content": "detailed insight description", "insight_type": "overview"
     
     def run(self):
         """Run the knowledge extraction server."""
-        print(f"Starting Simple Knowledge Extraction Server on port {self.port}")
+        print(f"Starting Knowledge Extraction Server on port {self.port}")
         uvicorn.run(self.app, host="127.0.0.1", port=self.port)
 
 

@@ -84,7 +84,7 @@ class DistributedA2AClient:
                     search_url,
                     json=payload,
                     headers=headers,
-                    timeout=30.0
+                    timeout=60.0
                 )
                 
                 if response.status_code == 200:
@@ -115,7 +115,7 @@ class DistributedA2AClient:
                     extract_url,
                     json=payload,
                     headers=headers,
-                    timeout=30.0
+                    timeout=60.0
                 )
                 
                 if response.status_code == 200:
@@ -218,7 +218,7 @@ class DistributedA2AClient:
                     report_url,
                     json=payload,
                     headers=headers,
-                    timeout=30.0
+                    timeout=60.0
                 )
                 
                 if response.status_code == 200:
