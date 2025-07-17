@@ -72,6 +72,11 @@ This platform demonstrates **true distributed A2A** with separate HTTP servers, 
 │                                                         │
 │ Input: SearchRequest                                    │
 │ Output: Structured search results with relevance       │
+│                                                         │
+│ Example Usage:                                          │
+│ POST /search                                            │
+│ {"query_text": "AI advances", "comprehensive": true}   │
+│ → Returns 10-20 results with follow-up searches        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -109,6 +114,11 @@ Client ──► Search Agent ──► DuckDuckGo ──► Web Scraping
 │                                                         │
 │ Input: Search results                                   │
 │ Output: 15-25 categorized insights per source          │
+│                                                         │
+│ Example Insights:                                       │
+│ • "Quantum computing leverages superposition for..."   │
+│ • "Applications span cryptography and optimization"    │
+│ • "Breakthrough achieved by IBM in error correction"   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -149,6 +159,12 @@ Search Results ──► Knowledge Agent ──► LM Studio
 │                                                         │
 │ Input: Aggregated research data                         │
 │ Output: Academic-quality research reports              │
+│                                                         │
+│ Report Structure:                                       │
+│ • Executive Summary (2-3 paragraphs)                   │
+│ • Key Findings (5-7 bullet points)                     │
+│ • Detailed Analysis (4-5 paragraphs)                   │
+│ • Research Gaps & Recommendations                      │
 └─────────────────────────────────────────────────────────┘
 ```
 
